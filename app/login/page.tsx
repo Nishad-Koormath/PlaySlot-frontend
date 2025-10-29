@@ -3,6 +3,7 @@
 import { useState, ChangeEvent, FormEvent } from "react";
 import { Eye, EyeOff, User, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import api from "@/lib/api";
 
 interface LoginForm {
@@ -12,7 +13,6 @@ interface LoginForm {
 
 export default function LoginPage() {
   const [form, setForm] = useState<LoginForm>({ username: "", password: "" });
-  const [error, setError] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -25,16 +25,33 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
+
+    // Validation
+    if (!form.username.trim() || !form.password.trim()) {
+      toast.error("Please fill in all fields");
+      setLoading(false);
+      return;
+    }
 
     try {
       const res = await api.post("/user/login/", form);
       localStorage.setItem("access", res.data.access);
       localStorage.setItem("refresh", res.data.refresh);
-      router.push("/");
+      
+      toast.success("Login successful! Redirecting...", {
+        duration: 2000,
+      });
+      
+      // Delay navigation slightly to show the success message
+      setTimeout(() => {
+        router.push("/");
+      }, 500);
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Invalid username or password");
+      const errorMessage = err.response?.data?.detail || "Invalid username or password";
+      toast.error(errorMessage, {
+        duration: 4000,
+      });
     } finally {
       setLoading(false);
     }
@@ -144,13 +161,6 @@ export default function LoginPage() {
                   </p>
                 </div>
 
-                {error && (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
-                    <span>⚠️</span>
-                    <span>{error}</span>
-                  </div>
-                )}
-
                 {/* Username */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -213,7 +223,7 @@ export default function LoginPage() {
                 {/* Register Link */}
                 <div className="text-center pt-4 border-t border-gray-200">
                   <p className="text-sm text-gray-600">
-                    Don’t have an account?{" "}
+                    Don't have an account?{" "}
                     <span
                       onClick={() => router.push("/register")}
                       className="text-green-600 font-bold hover:text-green-700 transition cursor-pointer underline"
