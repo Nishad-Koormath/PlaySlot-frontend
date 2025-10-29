@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface RegisterForm {
   username: string;
@@ -31,7 +32,6 @@ export default function RegisterPage() {
     password2: "",
     is_turf_owner: false,
   });
-  const [error, setError] = useState<string>("");
   const [showPassword, setShowPassword] = useState(false);
   const [showPassword2, setShowPassword2] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -45,11 +45,35 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
+
+    // Validation
+    if (!form.username.trim() || !form.email.trim() || !form.password.trim()) {
+      toast.error("Please fill in all required fields");
+      setLoading(false);
+      return;
+    }
+
+    if (form.password !== form.password2) {
+      toast.error("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+
+    if (form.password.length < 8) {
+      toast.error("Password must be at least 8 characters long");
+      setLoading(false);
+      return;
+    }
 
     try {
       await api.post("/user/register/", form);
+      
+      toast.success("Account created successfully! Logging you in...", {
+        duration: 2000,
+      });
+
+      // Auto login after registration
       const loginRes = await api.post("/user/login/", {
         email: form.email,
         password: form.password,
@@ -58,13 +82,25 @@ export default function RegisterPage() {
       localStorage.setItem("access", loginRes.data.access);
       localStorage.setItem("refresh", loginRes.data.refresh);
 
-      router.push("/");
+      toast.success("Welcome aboard! Redirecting...", {
+        duration: 2000,
+      });
+
+      setTimeout(() => {
+        router.push("/");
+      }, 500);
     } catch (err: any) {
-      setError(
+      const errorMessage =
         err.response?.data?.detail ||
-          err.response?.data?.error ||
-          "Registration failed"
-      );
+        err.response?.data?.error ||
+        err.response?.data?.username?.[0] ||
+        err.response?.data?.email?.[0] ||
+        err.response?.data?.phone?.[0] ||
+        "Registration failed. Please try again.";
+      
+      toast.error(errorMessage, {
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
     }
@@ -242,13 +278,6 @@ export default function RegisterPage() {
               className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl p-6 border border-white/20 overflow-y-auto max-h-full"
             >
               <div className="space-y-3">
-                {error && (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center gap-2">
-                    <span>⚠️</span>
-                    <span className="text-xs">{error}</span>
-                  </div>
-                )}
-
                 {/* Two Column Layout for Desktop */}
                 <div className="grid md:grid-cols-2 gap-3">
                   {/* Username */}
